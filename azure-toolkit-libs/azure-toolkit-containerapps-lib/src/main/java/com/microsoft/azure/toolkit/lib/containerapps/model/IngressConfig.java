@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 public class IngressConfig {
     public static final Traffic DEFAULT_TRAFFIC = Traffic.builder()
             .latestRevision(true).weight(100).build();
+    //todo(ruoyuwang): check if properties can be to wrapper class?
     private boolean enableIngress;
     private int targetPort;
     private boolean external;
