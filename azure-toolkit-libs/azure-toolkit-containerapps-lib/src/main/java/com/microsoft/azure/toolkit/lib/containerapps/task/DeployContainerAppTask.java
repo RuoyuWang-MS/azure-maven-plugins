@@ -13,6 +13,11 @@ import com.microsoft.azure.toolkit.lib.containerapps.containerapp.ContainerApp;
 import com.microsoft.azure.toolkit.lib.containerapps.containerapp.ContainerAppDraft;
 import com.microsoft.azure.toolkit.lib.containerapps.environment.ContainerAppsEnvironment;
 import com.microsoft.azure.toolkit.lib.containerapps.environment.ContainerAppsEnvironmentDraft;
+import com.microsoft.azure.toolkit.lib.containerregistry.AzureContainerRegistry;
+import com.microsoft.azure.toolkit.lib.containerregistry.ContainerRegistry;
+import com.microsoft.azure.toolkit.lib.containerregistry.ContainerRegistryDraft;
+import com.microsoft.azure.toolkit.lib.containerregistry.config.ContainerRegistryConfig;
+import com.microsoft.azure.toolkit.lib.containerregistry.model.Sku;
 import com.microsoft.azure.toolkit.lib.resource.AzureResources;
 import com.microsoft.azure.toolkit.lib.resource.ResourceGroup;
 import com.microsoft.azure.toolkit.lib.resource.task.CreateResourceGroupTask;
@@ -46,6 +51,7 @@ public class DeployContainerAppTask extends AzureTask<ContainerApp> {
 
         addCreateResourceGroupTaskIfNecessary(environmentConfig);
         addCreateAppEnvironmentTaskIfNecessary(environmentConfig);
+        addCreateContainerRegistryTaskIfNecessary(config.getRegistryConfig());
         addCreateOrUpdateContainerAppTask();
     }
 
@@ -74,6 +80,22 @@ public class DeployContainerAppTask extends AzureTask<ContainerApp> {
                 draftConfig.setRegion(Region.fromName(config.getRegion()));
                 draft.setConfig(draftConfig);
                 draft.commit();
+            }));
+        }
+    }
+
+    //todo(ruoyuwang): check new ACR logic here. Reuse the existing ACR if it exists
+    private void addCreateContainerRegistryTaskIfNecessary(@Nonnull final ContainerRegistryConfig containerRegistryConfig) {
+        final ContainerRegistry registry = Azure.az(AzureContainerRegistry.class).registry(containerRegistryConfig.getSubscriptionId())
+            .getOrDraft(containerRegistryConfig.getRegistryName(), containerRegistryConfig.getResourceGroup());
+        if (registry.isDraftForCreating() && !registry.exists()) {
+            final AzureString title = AzureString.format("Create new Container Registry({0})", registry.getName());
+            this.subTasks.add(new AzureTask<Void>(title, () -> {
+                final ContainerRegistryDraft draft = (ContainerRegistryDraft) registry;
+                draft.setRegion(Region.fromName(containerRegistryConfig.getRegion()));
+                draft.setSku(Sku.Standard);
+                draft.setAdminUserEnabled(true);
+                config.getImageConfig().setContainerRegistry(draft.commit());
             }));
         }
     }

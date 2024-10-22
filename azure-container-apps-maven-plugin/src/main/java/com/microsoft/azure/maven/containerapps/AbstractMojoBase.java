@@ -13,6 +13,7 @@ import com.microsoft.azure.maven.containerapps.parser.ConfigParser;
 import com.microsoft.azure.toolkit.lib.common.proxy.ProxyManager;
 import com.microsoft.azure.toolkit.lib.containerapps.config.ContainerAppConfig;
 import com.microsoft.azure.toolkit.lib.containerapps.containerapp.ContainerAppDraft;
+import com.microsoft.azure.toolkit.lib.containerregistry.config.ContainerRegistryConfig;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -58,7 +59,7 @@ public abstract class AbstractMojoBase extends AbstractAzureMojo {
     //todo init registry and change the type
     @Getter
     @Parameter(property = "registry")
-    protected String registry;
+    protected ContainerRegistryConfig registry;
 
     @Getter
     @Parameter(property = "containers")

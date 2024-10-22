@@ -3,6 +3,7 @@ package com.microsoft.azure.toolkit.lib.containerapps.config;
 import com.microsoft.azure.toolkit.lib.containerapps.containerapp.ContainerAppDraft;
 import com.microsoft.azure.toolkit.lib.containerapps.model.IngressConfig;
 import com.microsoft.azure.toolkit.lib.containerapps.model.ResourceConfiguration;
+import com.microsoft.azure.toolkit.lib.containerregistry.config.ContainerRegistryConfig;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -21,6 +22,7 @@ public class ContainerAppConfig {
     private String appName;
     private IngressConfig ingressConfig;
     //todo(ruoyuwang): change imageConfig && resourceConfiguration to containerConfig and registry;
+    private ContainerRegistryConfig registryConfig;
     private ContainerAppDraft.ImageConfig imageConfig;
     private ResourceConfiguration resourceConfiguration;
     private ContainerAppDraft.ScaleConfig scaleConfig;
