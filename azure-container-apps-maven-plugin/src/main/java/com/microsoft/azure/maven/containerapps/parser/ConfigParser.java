@@ -53,6 +53,7 @@ public class ConfigParser {
         if (containers == null || containers.isEmpty()) {
             return null;
         }
+        // todo(ruoyuwang): support other ACR_IMAGE_SUFFIX for different cloud environments
         final String defaultImageName = String.format("%s%s/%s:%s", mojo.getRegistry().getRegistryName(), ContainerRegistry.ACR_IMAGE_SUFFIX, mojo.getAppName(), timestamp);
         final String fullImageName = Optional.ofNullable(containers.get(0).getImage()).orElse(defaultImageName);
         final ContainerAppDraft.ImageConfig imageConfig = new ContainerAppDraft.ImageConfig(fullImageName);
