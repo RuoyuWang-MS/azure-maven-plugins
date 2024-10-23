@@ -30,9 +30,6 @@ import java.util.Optional;
 
 
 public class DeployContainerAppTask extends AzureTask<ContainerApp> {
-    private static final String EXPANDABLE_REGION_WARNING = "'%s' may not be a valid region, " +
-        "please refer to https://aka.ms/maven_webapp_runtime#region for valid values";
-
     private final ContainerAppConfig config;
     private ContainerApp containerApp;
     @Nonnull
@@ -44,15 +41,18 @@ public class DeployContainerAppTask extends AzureTask<ContainerApp> {
     }
     private void initTasks() {
         final ContainerAppsEnvironmentConfig environmentConfig = config.getEnvironment();
-        final String subscriptionId = Optional.ofNullable(environmentConfig).map(ContainerAppsEnvironmentConfig::getSubscriptionId).filter(StringUtils::isNotBlank).orElseThrow(() -> new AzureToolkitRuntimeException("'subscriptionId' is required"));
-        final String environmentName = Optional.ofNullable(environmentConfig).map(ContainerAppsEnvironmentConfig::getAppEnvironmentName).filter(StringUtils::isNotBlank).orElseThrow(() -> new AzureToolkitRuntimeException("'environmentName' is required"));
-        final String appName = Optional.ofNullable(config).map(ContainerAppConfig::getAppName).filter(StringUtils::isNotBlank).orElseThrow(() -> new AzureToolkitRuntimeException("'appName' is required"));
-        final String resourceGroupName = Optional.ofNullable(environmentConfig).map(ContainerAppsEnvironmentConfig::getResourceGroup).filter(StringUtils::isNotBlank).orElseThrow(() -> new AzureToolkitRuntimeException("'resourceGroup' is required"));
-
+        preCheck(environmentConfig);
         addCreateResourceGroupTaskIfNecessary(environmentConfig);
         addCreateAppEnvironmentTaskIfNecessary(environmentConfig);
         addCreateContainerRegistryTaskIfNecessary(config.getRegistryConfig());
         addCreateOrUpdateContainerAppTask();
+    }
+
+    private void preCheck(ContainerAppsEnvironmentConfig environmentConfig) {
+        Optional.ofNullable(environmentConfig).map(ContainerAppsEnvironmentConfig::getSubscriptionId).filter(StringUtils::isNotBlank).orElseThrow(() -> new AzureToolkitRuntimeException("'subscriptionId' is required"));
+        Optional.ofNullable(environmentConfig).map(ContainerAppsEnvironmentConfig::getAppEnvironmentName).filter(StringUtils::isNotBlank).orElseThrow(() -> new AzureToolkitRuntimeException("'environmentName' is required"));
+        Optional.ofNullable(config).map(ContainerAppConfig::getAppName).filter(StringUtils::isNotBlank).orElseThrow(() -> new AzureToolkitRuntimeException("'appName' is required"));
+        Optional.ofNullable(environmentConfig).map(ContainerAppsEnvironmentConfig::getResourceGroup).filter(StringUtils::isNotBlank).orElseThrow(() -> new AzureToolkitRuntimeException("'resourceGroup' is required"));
     }
 
     private void addCreateResourceGroupTaskIfNecessary(@Nonnull final ContainerAppsEnvironmentConfig config) {
