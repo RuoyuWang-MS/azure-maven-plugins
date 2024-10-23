@@ -4,6 +4,7 @@ import com.microsoft.azure.maven.containerapps.AbstractMojoBase;
 import com.microsoft.azure.maven.containerapps.config.AppContainerMavenConfig;
 import com.microsoft.azure.maven.containerapps.config.DeploymentType;
 import com.microsoft.azure.maven.containerapps.config.IngressMavenConfig;
+import com.microsoft.azure.toolkit.lib.common.utils.Utils;
 import com.microsoft.azure.toolkit.lib.containerapps.config.ContainerAppConfig;
 import com.microsoft.azure.toolkit.lib.containerapps.config.ContainerAppsEnvironmentConfig;
 import com.microsoft.azure.toolkit.lib.containerapps.containerapp.ContainerAppDraft;
@@ -13,8 +14,6 @@ import com.microsoft.azure.toolkit.lib.containerregistry.ContainerRegistry;
 import com.microsoft.azure.toolkit.lib.containerregistry.config.ContainerRegistryConfig;
 
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,8 +21,11 @@ public class ConfigParser {
 
     protected AbstractMojoBase mojo;
 
+    private final String timestamp;
+
     public ConfigParser(AbstractMojoBase mojo) {
         this.mojo = mojo;
+        this.timestamp = Utils.getTimestamp();
     }
 
     public ContainerAppConfig getContainerAppConfig() {
@@ -51,14 +53,7 @@ public class ConfigParser {
         if (containers == null || containers.isEmpty()) {
             return null;
         }
-
-        // Get current date and time
-        LocalDateTime now = LocalDateTime.now();
-        // Define the format
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
-        // Format the current time
-        String formattedTimestamp = now.format(formatter);
-        final String defaultImageName = String.format("%s%s/%s:%s", mojo.getRegistry().getRegistryName(), ContainerRegistry.ACR_IMAGE_SUFFIX, mojo.getAppName(), formattedTimestamp);
+        final String defaultImageName = String.format("%s%s/%s:%s", mojo.getRegistry().getRegistryName(), ContainerRegistry.ACR_IMAGE_SUFFIX, mojo.getAppName(), timestamp);
         final String fullImageName = Optional.ofNullable(containers.get(0).getImage()).orElse(defaultImageName);
         final ContainerAppDraft.ImageConfig imageConfig = new ContainerAppDraft.ImageConfig(fullImageName);
         if (containers.get(0).getEnvironment() != null) {
@@ -103,13 +98,7 @@ public class ConfigParser {
         }
         ContainerRegistryConfig config = new ContainerRegistryConfig();
 
-        // Get current date and time
-        LocalDateTime now = LocalDateTime.now();
-        // Define the format
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-        // Format the current time
-        String formattedTimestamp = now.format(formatter);
-        final String defaultRegistryName = String.format("acr%s", formattedTimestamp);
+        final String defaultRegistryName = String.format("acr%s", timestamp);
 
         config.setRegistryName(Optional.ofNullable(mojo.getRegistry().getRegistryName()).orElse(defaultRegistryName));
         mojo.getRegistry().setRegistryName(config.getRegistryName());
