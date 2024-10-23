@@ -4,19 +4,9 @@ import com.microsoft.azure.toolkit.lib.containerapps.containerapp.ContainerAppDr
 import com.microsoft.azure.toolkit.lib.containerapps.model.IngressConfig;
 import com.microsoft.azure.toolkit.lib.containerapps.model.ResourceConfiguration;
 import com.microsoft.azure.toolkit.lib.containerregistry.config.ContainerRegistryConfig;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.Data;
 
-@Builder
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
+@Data
 public class ContainerAppConfig {
     private ContainerAppsEnvironmentConfig environment;
     private String appName;
