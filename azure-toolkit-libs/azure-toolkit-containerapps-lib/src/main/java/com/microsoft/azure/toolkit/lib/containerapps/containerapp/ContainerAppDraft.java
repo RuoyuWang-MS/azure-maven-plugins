@@ -17,6 +17,7 @@ import com.azure.resourcemanager.appcontainers.models.RegistryCredentials;
 import com.azure.resourcemanager.appcontainers.models.Scale;
 import com.azure.resourcemanager.appcontainers.models.Secret;
 import com.azure.resourcemanager.appcontainers.models.Template;
+import com.azure.resourcemanager.containerregistry.models.OverridingArgument;
 import com.azure.resourcemanager.containerregistry.models.RegistryTaskRun;
 import com.google.common.collect.Sets;
 import com.microsoft.azure.toolkit.lib.Azure;
@@ -53,15 +54,22 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -72,6 +80,8 @@ import java.util.stream.Collectors;
 import static com.microsoft.azure.toolkit.lib.containerregistry.ContainerRegistry.ACR_IMAGE_SUFFIX;
 
 public class ContainerAppDraft extends ContainerApp implements AzResource.Draft<ContainerApp, com.azure.resourcemanager.appcontainers.models.ContainerApp> {
+    private static final String sourceDockerFilePath = "template/source-dockerfile";
+    private static final String artifactDockerFilePath = "template/artifact-dockerfile";
 
     @Getter
     @Nullable
@@ -239,31 +249,28 @@ public class ContainerAppDraft extends ContainerApp implements AzResource.Draft<
         OperationContext.action().setTelemetryProperty("hasDockerFile", String.valueOf(imageConfig.sourceHasDockerFile()));
         final BuildImageConfig buildConfig = Objects.requireNonNull(imageConfig.getBuildImageConfig());
         final String fullImageName;
+        Path tempFolder = null;
         if (imageConfig.sourceHasDockerFile()) {
             // ACR Task is the only way we have for now to build a Dockerfile using Docker.
             AzureMessager.getMessager().warning("Dockerfile detected. Running the build through ACR.");
-            final ContainerRegistry registry = getOrCreateRegistry(imageConfig);
-            tarSourceIfNeeded(buildConfig);
-            final RegistryTaskRun run = registry.buildImage(imageConfig.getAcrImageNameWithTag(), buildConfig.getSource());
-            if (Objects.isNull(run)) {
-                throw new AzureToolkitRuntimeException("ACR is not ready, Failed to build image through ACR.");
-            }
-            fullImageName = registry.waitForImageBuilding(run);
+            fullImageName = buildThroughACR(imageConfig, buildConfig);
         } else {
             OperationContext.action().setTelemetryProperty("isDirectory", String.valueOf(Files.isDirectory(buildConfig.source)));
             if (Files.isDirectory(buildConfig.source)) {
-                AzureMessager.getMessager().warning("No Dockerfile detected. Building container image from source code through Container Apps cloud build.");
+                AzureMessager.getMessager().warning("No Dockerfile detected. Running the build through ACR with default Dockerfile.");
+                generateDockerfile(buildConfig, sourceDockerFilePath);
             } else {
-                AzureMessager.getMessager().warning("Building container image from artifact through Container Apps cloud build.");
+                AzureMessager.getMessager().warning("Building container image from artifact through ACR with default Dockerfile.");
+                //todo(ruoyuwang): delete the temp folder after build
+                tempFolder = generateTempFolder(buildConfig);
             }
-            final ContainerAppsEnvironment environment = Objects.requireNonNull(this.getManagedEnvironment());
-            tarSourceIfNeeded(buildConfig);
-            final BuildResource build = environment.buildImage(buildConfig.getSource(), buildConfig.sourceBuildEnv);
-            fullImageName = environment.waitForImageBuilding(build);
+            fullImageName = buildThroughACR(imageConfig, buildConfig);
         }
+        deleteTempFolder(tempFolder);
         if (StringUtils.isNotBlank(fullImageName)) {
             imageConfig.setFullImageName(fullImageName);
         }
+
     }
 
     private static void tarSourceIfNeeded(final BuildImageConfig buildConfig) {
@@ -273,6 +280,73 @@ public class ContainerAppDraft extends ContainerApp implements AzResource.Draft<
             final Path sourceTar = Utils.tar(buildConfig.source, (path) -> ignored.contains(path.getFileName().toString()));
             buildConfig.setSource(sourceTar);
         }
+    }
+
+    private String buildThroughACR(final ImageConfig imageConfig, final BuildImageConfig buildConfig) {
+        Map<String, OverridingArgument> overridingArguments = Optional.ofNullable(imageConfig.getBuildImageConfig())
+            .map(BuildImageConfig::getSourceBuildEnv)
+            .orElse(Collections.emptyMap())
+            .entrySet().stream()
+            .collect(Collectors.toMap(Map.Entry::getKey, e -> new OverridingArgument(e.getValue(), false)));
+        final ContainerRegistry registry = getOrCreateRegistry(imageConfig);
+        tarSourceIfNeeded(buildConfig);
+        final RegistryTaskRun run = registry.buildImage(imageConfig.getAcrImageNameWithTag(), buildConfig.getSource(), "./Dockerfile", overridingArguments);
+        if (Objects.isNull(run)) {
+            throw new AzureToolkitRuntimeException("ACR is not ready, Failed to build image through ACR.");
+        }
+        return registry.waitForImageBuilding(run);
+    }
+
+    private static void deleteTempFolder(Path tempFolder) {
+        if (Objects.isNull(tempFolder)) {
+            return;
+        }
+        try {
+            FileUtils.deleteDirectory(tempFolder.toFile());
+        } catch (IOException e) {
+            throw new AzureToolkitRuntimeException("Failed to delete temporary directory: " + tempFolder, e);
+        }
+    }
+
+    private static void generateDockerfile(final BuildImageConfig buildConfig, String templatePath) {
+        Path destination = buildConfig.source.resolve("Dockerfile");
+        // Path to the Dockerfile inside the resources/template folder
+        // Load the Dockerfile from the resources
+        InputStream inputStream = ContainerAppDraft.class.getClassLoader().getResourceAsStream(templatePath);
+        if (inputStream == null) {
+            throw new AzureToolkitRuntimeException("Template dockerfile not found in the resources: " + templatePath);
+        }
+        // Copy the Dockerfile to the destination path
+        try {
+            Files.copy(inputStream, destination, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            throw new AzureToolkitRuntimeException("Failed to copy Dockerfile to the destination path: " + destination, e);
+        }
+        AzureMessager.getMessager().info("Dockerfile generated successfully to: " + destination);
+    }
+
+    private static Path generateTempFolder(final BuildImageConfig buildConfig) {
+        // Create a temporary directory and handle resources
+        Path tempDir;
+        try {
+            // Step 1: Create a temporary directory
+            tempDir = Files.createTempDirectory(String.format("aca-maven-plugin-%s", Utils.getTimestamp()));
+            AzureMessager.getMessager().info("Temporary directory created: " + tempDir);
+
+            // Step 2: Copy Jar to the temporary directory
+            Path sourceFile = buildConfig.getSource();  // replace with your file path
+            Path targetFile = tempDir.resolve("app.jar");
+            Files.copy(sourceFile, targetFile, StandardCopyOption.REPLACE_EXISTING);
+            AzureMessager.getMessager().info("File copied to temporary directory: " + targetFile);
+
+            buildConfig.setSource(tempDir);
+
+            generateDockerfile(buildConfig, artifactDockerFilePath);
+
+        } catch (IOException e) {
+            throw new AzureToolkitRuntimeException("Failed to create temporary directory and copy artifact", e);
+        }
+        return tempDir;
     }
 
     @Nonnull

@@ -10,6 +10,7 @@ import com.azure.resourcemanager.containerregistry.ContainerRegistryManager;
 import com.azure.resourcemanager.containerregistry.fluent.models.RegistryInner;
 import com.azure.resourcemanager.containerregistry.models.AccessKeyType;
 import com.azure.resourcemanager.containerregistry.models.ImageDescriptor;
+import com.azure.resourcemanager.containerregistry.models.OverridingArgument;
 import com.azure.resourcemanager.containerregistry.models.ProvisioningState;
 import com.azure.resourcemanager.containerregistry.models.PublicNetworkAccess;
 import com.azure.resourcemanager.containerregistry.models.Registry;
@@ -41,6 +42,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -140,6 +142,28 @@ public class ContainerRegistry extends AbstractAzResource<ContainerRegistry, Azu
      */
     @Nullable
     public RegistryTaskRun buildImage(final String imageNameWithTag, final Path sourceTar) {
+        return buildImage(imageNameWithTag, sourceTar, "./Dockerfile", Collections.emptyMap());
+//        return this.remoteOptional().map(r -> {
+//            // upload tar.gz file
+//            AzureMessager.getMessager().progress(AzureString.format("Uploading compressed source code to Registry '%s'.", this.getName()));
+//            final SourceUploadDefinition upload = r.getBuildSourceUploadUrl();
+//            final BlockBlobClient blobClient = new SpecializedBlobClientBuilder().endpoint(upload.uploadUrl()).buildBlockBlobClient();
+//            blobClient.upload(BinaryData.fromFile(sourceTar));
+//
+//            AzureMessager.getMessager().progress(AzureString.format("Building image '%s' in Registry '%s'.", imageNameWithTag, this.getName()));
+//            return r.scheduleRun().withLinux().withDockerTaskRunRequest()
+//                .defineDockerTaskStep()
+//                .withDockerFilePath("./Dockerfile")
+//                .withImageNames(Collections.singletonList(imageNameWithTag))
+//                .withPushEnabled(true)
+//                .attach()
+//                .withSourceLocation(upload.relativePath())
+//                .execute();
+//        }).orElse(null);
+    }
+
+    @Nullable
+    public RegistryTaskRun buildImage(final String imageNameWithTag, final Path sourceTar, final String dockerFilePath, final Map<String, OverridingArgument> buildArguments) {
         return this.remoteOptional().map(r -> {
             // upload tar.gz file
             AzureMessager.getMessager().progress(AzureString.format("Uploading compressed source code to Registry '%s'.", this.getName()));
@@ -150,7 +174,8 @@ public class ContainerRegistry extends AbstractAzResource<ContainerRegistry, Azu
             AzureMessager.getMessager().progress(AzureString.format("Building image '%s' in Registry '%s'.", imageNameWithTag, this.getName()));
             return r.scheduleRun().withLinux().withDockerTaskRunRequest()
                 .defineDockerTaskStep()
-                .withDockerFilePath("./Dockerfile")
+                .withDockerFilePath(dockerFilePath)
+                .withOverridingArguments(buildArguments)
                 .withImageNames(Collections.singletonList(imageNameWithTag))
                 .withPushEnabled(true)
                 .attach()
