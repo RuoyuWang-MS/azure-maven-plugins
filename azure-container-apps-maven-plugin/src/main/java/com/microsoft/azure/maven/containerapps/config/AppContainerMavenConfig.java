@@ -10,7 +10,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.annotation.Nullable;
-import java.nio.file.Path;
 import java.util.List;
 
 @Getter
@@ -27,5 +26,5 @@ public class AppContainerMavenConfig {
     @Nullable
     private List<EnvironmentVar> environment;
     @Nullable
-    private Path directory;
+    private String directory;
 }
