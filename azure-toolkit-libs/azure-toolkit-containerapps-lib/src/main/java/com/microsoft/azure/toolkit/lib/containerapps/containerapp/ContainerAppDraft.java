@@ -171,7 +171,7 @@ public class ContainerAppDraft extends ContainerApp implements AzResource.Draft<
         final boolean isImageModified = Objects.nonNull(imageConfig) && !Objects.equals(imageConfig, super.getImageConfig());
         final boolean isIngressConfigModified = Objects.nonNull(ingressConfig) && !Objects.equals(ingressConfig, super.getIngressConfig());
         final boolean isRevisionModeModified = !Objects.equals(revisionMode, super.getRevisionMode());
-        final boolean isScaleModified = !Objects.equals(scaleConfig, super.getScaleConfig());
+        final boolean isScaleModified = Objects.nonNull(scaleConfig) && !Objects.equals(scaleConfig, super.getScaleConfig());
         final boolean isModified = isImageModified || isIngressConfigModified || isRevisionModeModified || isScaleModified;
         if (!isModified) {
             return origin;
@@ -257,7 +257,6 @@ public class ContainerAppDraft extends ContainerApp implements AzResource.Draft<
                 generateDockerfile(buildConfig, sourceDockerFilePath);
             } else {
                 AzureMessager.getMessager().warning("Building container image from artifact through ACR with default Dockerfile.");
-                //todo(ruoyuwang): delete the temp folder after build
                 tempFolder = generateTempFolder(buildConfig);
             }
             fullImageName = buildThroughACR(imageConfig, buildConfig);

@@ -84,7 +84,6 @@ public class DeployContainerAppTask extends AzureTask<ContainerApp> {
         }
     }
 
-    //todo(ruoyuwang): check new ACR logic here. Reuse the existing ACR if it exists
     private void addCreateContainerRegistryTaskIfNecessary(@Nonnull final ContainerRegistryConfig containerRegistryConfig) {
         final ContainerRegistry registry = Azure.az(AzureContainerRegistry.class).registry(containerRegistryConfig.getSubscriptionId())
             .getOrDraft(containerRegistryConfig.getRegistryName(), containerRegistryConfig.getResourceGroup());
