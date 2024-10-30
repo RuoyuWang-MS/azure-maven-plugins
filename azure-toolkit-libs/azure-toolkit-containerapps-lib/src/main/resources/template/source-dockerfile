@@ -1,0 +1,39 @@
+# Dockerfile.template
+
+# Build-time variable (can be passed using --build-arg)
+ARG JAVA_VERSION=${JAVA_VERSION:-11}
+
+# TODO(ruoyuwang): use microsoft java image.
+# Step 1: Use a Maven image to build the application
+FROM maven:3-eclipse-temurin-${JAVA_VERSION} AS builder
+
+# Set the working directory in the builder image
+WORKDIR /app
+
+# Copy the pom.xml and any other Maven configuration files first
+COPY pom.xml ./
+
+# TODO(ruoyuwang): enable this after the plugin is public available.9
+# # Download the Maven dependencies (to leverage Docker caching)
+# RUN mvn dependency:go-offline -B
+
+# Copy the entire source code into the container
+COPY src ./src
+
+# Build the application (adjust for the exact path to the JAR)
+RUN mvn clean package -DskipTests
+
+# Step 2: Use a minimal JDK runtime for the final image
+FROM eclipse-temurin:${JAVA_VERSION}
+
+# Set the working directory in the runtime image
+WORKDIR /app
+
+# Copy the JAR file from the builder image
+COPY --from=builder /app/target/*.jar app.jar
+
+# Expose the port on which the Spring Boot app will run
+EXPOSE 8080
+
+# Set the entrypoint to run the Spring Boot application
+ENTRYPOINT ["java", "-jar", "app.jar"]

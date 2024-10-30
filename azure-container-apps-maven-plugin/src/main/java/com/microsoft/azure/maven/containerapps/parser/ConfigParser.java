@@ -4,6 +4,8 @@ import com.microsoft.azure.maven.containerapps.AbstractMojoBase;
 import com.microsoft.azure.maven.containerapps.config.AppContainerMavenConfig;
 import com.microsoft.azure.maven.containerapps.config.DeploymentType;
 import com.microsoft.azure.maven.containerapps.config.IngressMavenConfig;
+import com.microsoft.azure.maven.utils.MavenUtils;
+import com.microsoft.azure.toolkit.lib.common.exception.AzureToolkitRuntimeException;
 import com.microsoft.azure.toolkit.lib.common.utils.Utils;
 import com.microsoft.azure.toolkit.lib.containerapps.config.ContainerAppConfig;
 import com.microsoft.azure.toolkit.lib.containerapps.config.ContainerAppsEnvironmentConfig;
@@ -12,9 +14,12 @@ import com.microsoft.azure.toolkit.lib.containerapps.model.IngressConfig;
 import com.microsoft.azure.toolkit.lib.containerapps.model.ResourceConfiguration;
 import com.microsoft.azure.toolkit.lib.containerregistry.ContainerRegistry;
 import com.microsoft.azure.toolkit.lib.containerregistry.config.ContainerRegistryConfig;
+import org.apache.commons.lang3.StringUtils;
 
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public class ConfigParser {
@@ -63,8 +68,23 @@ public class ConfigParser {
         if (containers.get(0).getType() == DeploymentType.Code || containers.get(0).getType() == DeploymentType.Artifact) {
             ContainerAppDraft.BuildImageConfig buildImageConfig = new ContainerAppDraft.BuildImageConfig();
             buildImageConfig.setSource(Paths.get(containers.get(0).getDirectory()));
+            //Check if we can generate dockerfile for this project. Currently only support spring boot project
+            if (!imageConfig.sourceHasDockerFile()) {
+                if (!MavenUtils.isSpringBootProject(mojo.getProject())) {
+                    throw new AzureToolkitRuntimeException("Cannot generate Dockerfile for non-spring-boot project");
+                }
+            }
+            //detect java version
+            Map<String, String> sourceBuildEnv = new HashMap<>();
+            String javaVersion = MavenUtils.getJavaVersion(mojo.getProject());
+            if (StringUtils.isNotEmpty(javaVersion)) {
+                sourceBuildEnv.put("JAVA_VERSION", javaVersion);
+            }
+            //todo(ruoyuwang): dockerfile path and some other properties into sourceBuildEnv
+            buildImageConfig.setSourceBuildEnv(sourceBuildEnv);
             imageConfig.setBuildImageConfig(buildImageConfig);
         }
+
         return imageConfig;
     }
 
