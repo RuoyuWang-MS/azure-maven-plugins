@@ -80,13 +80,12 @@ public abstract class AbstractMojoBase extends AbstractAzureMojo {
 
     protected void initTelemetryProxy() {
         super.initTelemetryProxy();
-        final ContainerAppConfig configuration = getConfiguration();
         final String javaVersion = String.format("%s %s", System.getProperty("java.vendor"), System.getProperty("java.version"));
         telemetryProxy.addDefaultProperty(TELEMETRY_KEY_PLUGIN_NAME, plugin.getArtifactId());
         telemetryProxy.addDefaultProperty(TELEMETRY_KEY_PLUGIN_VERSION, plugin.getVersion());
         telemetryProxy.addDefaultProperty(TELEMETRY_KEY_JAVA_VERSION, javaVersion);
         telemetryProxy.addDefaultProperty(PROXY, String.valueOf(ProxyManager.getInstance().isProxyEnabled()));
-        telemetryProxy.addDefaultProperty(TELEMETRY_KEY_SUBSCRIPTION_ID, Optional.ofNullable(configuration.getEnvironment().getSubscriptionId()).orElse(StringUtils.EMPTY));
+        telemetryProxy.addDefaultProperty(TELEMETRY_KEY_SUBSCRIPTION_ID, Optional.ofNullable(getSubscriptionId()).orElse(StringUtils.EMPTY));
     }
 
     public synchronized ContainerAppConfig getConfiguration() {

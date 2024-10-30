@@ -112,7 +112,7 @@ public class ConfigParser {
     public ContainerRegistryConfig getRegistryConfig() {
         final String defaultRegistryName = String.format("acr%s", timestamp);
         ContainerRegistryConfig config = new ContainerRegistryConfig();
-        if (mojo.getRegistry() == null) {
+        if (mojo.getRegistry() == null || mojo.getRegistry().getRegistryName() == null) {
             final ContainerRegistry registry = Azure.az(AzureContainerRegistry.class).registry(mojo.getSubscriptionId())
                 .listByResourceGroup(mojo.getResourceGroup()).stream().filter(ContainerRegistry::isAdminUserEnabled).findFirst().orElse(null);
             config.setRegistryName(Optional.ofNullable(registry).map(ContainerRegistry::getName).orElse(defaultRegistryName));
