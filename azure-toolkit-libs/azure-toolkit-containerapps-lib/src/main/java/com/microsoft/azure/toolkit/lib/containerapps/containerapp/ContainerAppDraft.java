@@ -76,8 +76,8 @@ import java.util.stream.Collectors;
 import static com.microsoft.azure.toolkit.lib.containerregistry.ContainerRegistry.ACR_IMAGE_SUFFIX;
 
 public class ContainerAppDraft extends ContainerApp implements AzResource.Draft<ContainerApp, com.azure.resourcemanager.appcontainers.models.ContainerApp> {
-    private static final String sourceDockerFilePath = "template/source-dockerfile";
-    private static final String artifactDockerFilePath = "template/artifact-dockerfile";
+    private static final String sourceDockerFilePath = "template/aca/source-dockerfile";
+    private static final String artifactDockerFilePath = "template/aca/artifact-dockerfile";
 
     @Getter
     @Nullable
@@ -253,10 +253,10 @@ public class ContainerAppDraft extends ContainerApp implements AzResource.Draft<
         } else {
             OperationContext.action().setTelemetryProperty("isDirectory", String.valueOf(Files.isDirectory(buildConfig.source)));
             if (Files.isDirectory(buildConfig.source)) {
-                AzureMessager.getMessager().warning("No Dockerfile detected. Running the build through ACR with default Dockerfile.");
+                AzureMessager.getMessager().warning("No Dockerfile detected. Running the build through ACR with a generated Dockerfile.");
                 generateDockerfile(buildConfig, sourceDockerFilePath);
             } else {
-                AzureMessager.getMessager().warning("Building container image from artifact through ACR with default Dockerfile.");
+                AzureMessager.getMessager().warning("Building container image from artifact through ACR with a generated Dockerfile.");
                 //todo(ruoyuwang): delete the temp folder after build
                 tempFolder = generateTempFolder(buildConfig);
             }
@@ -323,7 +323,7 @@ public class ContainerAppDraft extends ContainerApp implements AzResource.Draft<
 
     private static Path generateTempFolder(final BuildImageConfig buildConfig) {
         // Create a temporary directory and handle resources
-        Path tempDir;
+        Path tempDir = null;
         try {
             // Step 1: Create a temporary directory
             tempDir = Files.createTempDirectory(String.format("aca-maven-plugin-%s", Utils.getTimestamp()));
@@ -340,6 +340,9 @@ public class ContainerAppDraft extends ContainerApp implements AzResource.Draft<
             generateDockerfile(buildConfig, artifactDockerFilePath);
 
         } catch (IOException e) {
+            if (Objects.nonNull(tempDir)) {
+                deleteTempFolder(tempDir);
+            }
             throw new AzureToolkitRuntimeException("Failed to create temporary directory and copy artifact", e);
         }
         return tempDir;
