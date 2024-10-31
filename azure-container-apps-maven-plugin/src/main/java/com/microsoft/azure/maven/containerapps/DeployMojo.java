@@ -25,7 +25,7 @@ import java.io.IOException;
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 
 /**
- * Deploy your project to target Azure Spring app. If target app doesn't exist, it will be created.
+ * Deploy your project to target Azure Container app. If target app doesn't exist, it will be created.
  */
 @Mojo(name = "deploy")
 @Slf4j
