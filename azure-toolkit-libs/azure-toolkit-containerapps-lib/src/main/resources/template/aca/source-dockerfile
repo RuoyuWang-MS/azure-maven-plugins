@@ -7,7 +7,7 @@ ARG JAVA_VERSION=${JAVA_VERSION:-11}
 FROM mcr.microsoft.com/openjdk/jdk:${JAVA_VERSION}-mariner AS builder
 
 # Install Maven in the builder image
-RUN tdnf install maven -y
+RUN tdnf install maven3 -y
 
 # Set the working directory in the builder image
 WORKDIR /app
