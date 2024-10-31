@@ -11,7 +11,6 @@ public class ContainerAppConfig {
     private ContainerAppsEnvironmentConfig environment;
     private String appName;
     private IngressConfig ingressConfig;
-    //todo(ruoyuwang): change imageConfig && resourceConfiguration to containerConfig and registry;
     private ContainerRegistryConfig registryConfig;
     private ContainerAppDraft.ImageConfig imageConfig;
     private ResourceConfiguration resourceConfiguration;

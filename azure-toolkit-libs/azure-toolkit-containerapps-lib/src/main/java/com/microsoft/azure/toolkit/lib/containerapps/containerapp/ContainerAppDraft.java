@@ -257,7 +257,6 @@ public class ContainerAppDraft extends ContainerApp implements AzResource.Draft<
                 generateDockerfile(buildConfig, sourceDockerFilePath);
             } else {
                 AzureMessager.getMessager().warning("Building container image from artifact through ACR with a generated Dockerfile.");
-                //todo(ruoyuwang): delete the temp folder after build
                 tempFolder = generateTempFolder(buildConfig);
             }
             fullImageName = buildThroughACR(imageConfig, buildConfig);

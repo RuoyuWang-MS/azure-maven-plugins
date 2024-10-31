@@ -5,6 +5,7 @@ import com.microsoft.azure.maven.containerapps.config.AppContainerMavenConfig;
 import com.microsoft.azure.maven.containerapps.config.DeploymentType;
 import com.microsoft.azure.maven.containerapps.config.IngressMavenConfig;
 import com.microsoft.azure.maven.utils.MavenUtils;
+import com.microsoft.azure.toolkit.lib.Azure;
 import com.microsoft.azure.toolkit.lib.common.exception.AzureToolkitRuntimeException;
 import com.microsoft.azure.toolkit.lib.common.utils.Utils;
 import com.microsoft.azure.toolkit.lib.containerapps.config.ContainerAppConfig;
@@ -12,6 +13,7 @@ import com.microsoft.azure.toolkit.lib.containerapps.config.ContainerAppsEnviron
 import com.microsoft.azure.toolkit.lib.containerapps.containerapp.ContainerAppDraft;
 import com.microsoft.azure.toolkit.lib.containerapps.model.IngressConfig;
 import com.microsoft.azure.toolkit.lib.containerapps.model.ResourceConfiguration;
+import com.microsoft.azure.toolkit.lib.containerregistry.AzureContainerRegistry;
 import com.microsoft.azure.toolkit.lib.containerregistry.ContainerRegistry;
 import com.microsoft.azure.toolkit.lib.containerregistry.config.ContainerRegistryConfig;
 import org.apache.commons.lang3.StringUtils;
@@ -45,21 +47,17 @@ public class ConfigParser {
         config.setResourceConfiguration(getResourceConfigurationFromContainers(mojo.getContainers()));
         config.setIngressConfig(getIngressConfig(mojo.getIngress()));
         config.setRegistryConfig(getRegistryConfig());
-        config.setImageConfig(getImageConfigFromContainers());
+        config.setImageConfig(getImageConfigFromContainers(config));
         config.setScaleConfig(mojo.getScale());
         return config;
     }
 
-
-    //todo(ruoyuwang): whether we should support multi containers? CLI/Portal only support one container
-    //todo(ruoyuwang): support container registry part
-    public ContainerAppDraft.ImageConfig getImageConfigFromContainers() {
+    public ContainerAppDraft.ImageConfig getImageConfigFromContainers(ContainerAppConfig config) {
         List<AppContainerMavenConfig> containers = mojo.getContainers();
         if (containers == null || containers.isEmpty()) {
             return null;
         }
-        // todo(ruoyuwang): support other ACR_IMAGE_SUFFIX for different cloud environments
-        final String defaultImageName = String.format("%s%s/%s:%s", mojo.getRegistry().getRegistryName(), ContainerRegistry.ACR_IMAGE_SUFFIX, mojo.getAppName(), timestamp);
+        final String defaultImageName = String.format("%s%s/%s:%s", config.getRegistryConfig().getRegistryName(), ContainerRegistry.ACR_IMAGE_SUFFIX, mojo.getAppName(), timestamp);
         final String fullImageName = Optional.ofNullable(containers.get(0).getImage()).orElse(defaultImageName);
         final ContainerAppDraft.ImageConfig imageConfig = new ContainerAppDraft.ImageConfig(fullImageName);
         if (containers.get(0).getEnvironment() != null) {
@@ -80,7 +78,6 @@ public class ConfigParser {
             if (StringUtils.isNotEmpty(javaVersion)) {
                 sourceBuildEnv.put("JAVA_VERSION", javaVersion);
             }
-            //todo(ruoyuwang): dockerfile path and some other properties into sourceBuildEnv
             buildImageConfig.setSourceBuildEnv(sourceBuildEnv);
             imageConfig.setBuildImageConfig(buildImageConfig);
         }
@@ -92,7 +89,6 @@ public class ConfigParser {
         if (containers == null || containers.isEmpty()) {
             return null;
         }
-        //todo(ruoyuwang): check the default cpu and memory logic here
         if (containers.get(0).getCpu() == null && containers.get(0).getMemory() == null) {
             return null;
         }
@@ -114,18 +110,19 @@ public class ConfigParser {
     }
 
     public ContainerRegistryConfig getRegistryConfig() {
-        if (mojo.getRegistry() == null) {
-            return null;
-        }
-        ContainerRegistryConfig config = new ContainerRegistryConfig();
-
         final String defaultRegistryName = String.format("acr%s", timestamp);
-
-        config.setRegistryName(Optional.ofNullable(mojo.getRegistry().getRegistryName()).orElse(defaultRegistryName));
-        mojo.getRegistry().setRegistryName(config.getRegistryName());
-        config.setResourceGroup(Optional.ofNullable(mojo.getRegistry().getResourceGroup()).orElse(mojo.getResourceGroup()));
-        config.setSubscriptionId(Optional.ofNullable(mojo.getRegistry().getSubscriptionId()).orElse(mojo.getSubscriptionId()));
-        config.setRegion(Optional.ofNullable(mojo.getRegistry().getRegion()).orElse(mojo.getRegion()));
+        ContainerRegistryConfig config = new ContainerRegistryConfig();
+        if (mojo.getRegistry() == null || mojo.getRegistry().getRegistryName() == null) {
+            final ContainerRegistry registry = Azure.az(AzureContainerRegistry.class).registry(mojo.getSubscriptionId())
+                .listByResourceGroup(mojo.getResourceGroup()).stream().filter(ContainerRegistry::isAdminUserEnabled).findFirst().orElse(null);
+            config.setRegistryName(Optional.ofNullable(registry).map(ContainerRegistry::getName).orElse(defaultRegistryName));
+        }
+        else {
+            config.setRegistryName(mojo.getRegistry().getRegistryName());
+        }
+        config.setResourceGroup(Optional.ofNullable(mojo.getRegistry()).map(ContainerRegistryConfig::getResourceGroup).orElse(mojo.getResourceGroup()));
+        config.setSubscriptionId(Optional.ofNullable(mojo.getRegistry()).map(ContainerRegistryConfig::getSubscriptionId).orElse(mojo.getSubscriptionId()));
+        config.setRegion(Optional.ofNullable(mojo.getRegistry()).map(ContainerRegistryConfig::getRegion).orElse(mojo.getRegion()));
         return config;
     }
 }

@@ -13,10 +13,6 @@ WORKDIR /app
 # Copy the pom.xml and any other Maven configuration files first
 COPY pom.xml ./
 
-# TODO(ruoyuwang): enable this after the plugin is public available.9
-# # Download the Maven dependencies (to leverage Docker caching)
-# RUN mvn dependency:go-offline -B
-
 # Copy the entire source code into the container
 COPY src ./src
 
